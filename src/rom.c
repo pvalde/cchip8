@@ -20,7 +20,7 @@ int ROM_read_rom(char *file_name, Rom *rom) {
     long file_size = ftell(file_ptr);
     fseek(file_ptr, 0, SEEK_SET);
 
-    printf("file size: %ld bytes\n", file_size);
+    // printf("file size: %ld bytes\n", file_size);
 
     // Dynamically allocate memory
     rom->data = (unsigned char *)malloc(file_size);

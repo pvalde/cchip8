@@ -1,5 +1,7 @@
 #include "chip8.h"
+#include "cpu.h"
 #include <SDL.h>
+#include <SDL_events.h>
 
 bool CHIP8_initialize_SDL(Chip8 *chip8) {
 
@@ -40,4 +42,19 @@ void CHIP8_close_SDL(Chip8 *chip8) {
     chip8->renderer = NULL;
 
     SDL_Quit();
+}
+
+void CHIP8_load_rom(Rom *rom) { CPU_load_rom(rom); }
+
+void CHIP8_run(Chip8 *ch8, SDL_Event p_event, bool *quit_flag) {
+    printf("inside run. quit: %d\n", (int)(*quit_flag));
+    while (!*quit_flag) {
+            while (SDL_PollEvent(&p_event)) {
+                if (p_event.type == SDL_QUIT) {
+                    *quit_flag = true;
+                }
+            }
+            // SDL_Delay(500);
+            CPU_Execute_Instruction(ch8);
+    }
 }

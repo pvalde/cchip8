@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "rom.h"
 #include "chip8.h"
+#include "rom.h"
 
 #define CHIP8_WIDTH 64
 #define CHIP8_HEIGHT 32
@@ -32,46 +32,22 @@ int main(int argc, char *argv[]) {
     chip8.renderer = NULL;
     chip8.screen_height = SCREEN_HEIGHT;
     chip8.screen_width = SCREEN_WIDTH;
+    chip8.scale = SCALE;
 
     if (!CHIP8_initialize_SDL(&chip8)) {
         printf("Failed to initialize SDL\n");
     }
 
-    // test rect
-    SDL_Rect rect;
-    rect.x = 0;
-    rect.y = 0;
-    rect.h = SCALE;
-    rect.w = SCALE;
+    CHIP8_load_rom(&rom);
 
     // event loop
     SDL_Event event;
     bool quit = false;
-    while (!quit) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                quit = true;
-            }
-        }
+    CHIP8_run(&chip8, event, &quit); // main loop
 
-        // Set color to black (for the background)
-        SDL_SetRenderDrawColor(chip8.renderer, 0, 0, 0, 255);
-        SDL_RenderClear(chip8.renderer);
-
-        // Draw test rect on the screen
-        rect.x += 1;
-        rect.y += 1;
-
-        SDL_SetRenderDrawColor(chip8.renderer, 255, 255, 255, 255);
-        SDL_RenderFillRect(chip8.renderer, &rect);
-        SDL_RenderPresent(chip8.renderer);
-        SDL_Delay(1000 / 60);
-    }
-
+    // close everything
     CHIP8_close_SDL(&chip8);
     ROM_deallocate_rom_data(&rom);
 
     return 0;
 }
-
-
