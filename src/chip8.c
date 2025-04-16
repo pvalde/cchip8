@@ -46,11 +46,11 @@ void CHIP8_close_SDL(Chip8 *chip8) {
 
 void CHIP8_load_rom(Rom *rom) { CPU_load_rom(rom); }
 
-void CHIP8_run(Chip8 *ch8, SDL_Event p_event, bool *quit_flag) {
+void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
     printf("inside run. quit: %d\n", (int)(*quit_flag));
     while (!*quit_flag) {
-            while (SDL_PollEvent(&p_event)) {
-                if (p_event.type == SDL_QUIT) {
+            while (SDL_PollEvent(&ch8->event)) {
+                if (ch8->event.type == SDL_QUIT) {
                     *quit_flag = true;
                 }
             }

@@ -41,9 +41,9 @@ int main(int argc, char *argv[]) {
     CHIP8_load_rom(&rom);
 
     // event loop
-    SDL_Event event;
+    // SDL_Event event;
     bool quit = false;
-    CHIP8_run(&chip8, event, &quit); // main loop
+    CHIP8_run(&chip8, &quit); // main loop
 
     // close everything
     CHIP8_close_SDL(&chip8);

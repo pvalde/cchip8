@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define ROM_ADDRESS 0x200
 #define BEGIN_FONTS_ADDRESS 0x000
@@ -14,20 +15,21 @@
 #define CH8_SCREEN_ROWS 32
 
 /*****************************************************************************
- * CPU internals 
+ * CPU internals
  ****************************************************************************/
 static uint8_t memory[0xFFF] = {0};
 static uint8_t v[0x10] = {0};
 static uint16_t stack[0x10] = {0};
 static uint16_t I = 0;
-static uint8_t delayTimer = 0;
-static uint8_t soundTimer = 0;
+static uint8_t delay_timer = 0;
+static uint8_t sound_timer = 0;
 static uint16_t pc = 0;
 static uint8_t sp = 0;
 static bool screen_data[CH8_SCREEN_ROWS][CH8_SCREEN_COLS] = {false};
 static bool font_loaded = false;
 static bool rom_loaded = false;
 static bool inc_pc = true;
+static uint8_t random_number = 0;
 
 /*****************************************************************************
  * static functions' declarations
@@ -186,8 +188,8 @@ static void CPU_clear_state(void) {
     I = 0;
 
     // clear delay and sound timers
-    delayTimer = 0;
-    soundTimer = 0;
+    delay_timer = 0;
+    sound_timer = 0;
 
     // clear program counter
     pc = 0;
@@ -217,6 +219,12 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x00EE:
                     // RET
+                    printf("RET\n");
+                    pc = stack[sp];
+                    sp--;
+                    // inc_pc = false; --> this is because we don't to repeat
+                    // the instruction we are returning to, but to continue
+                    // with the next after it.
                     break;
                 default:
                     // SYS addr
@@ -234,15 +242,32 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0x2000:
             // CALL addr
+            printf("CALL addr\n");
+            sp++;
+            stack[sp] = pc;
+            pc = n2 | n3 | n4;
+            inc_pc = false;
             break;
         case 0x3000:
             // SE Vx, byte
+            printf("SE Vx, byte\n");
+            if ((v[n2 >> 8]) == (n3 | n4)) {
+                pc += 2;
+            }
             break;
         case 0x4000:
             // SNE Vx, byte
+            printf("SNE Vx, byte\n");
+            if ((v[n2 >> 8]) != (n3 | n4)) {
+                pc += 2;
+            }
             break;
         case 0x5000:
             // SE Vx, Vy
+            printf("SE Vx, Vy\n");
+            if ((v[n2 >> 8]) == (v[n3 >> 4])) {
+                pc += 2;
+            }
             break;
         case 0x6000:
             // LD Vx, byte
@@ -258,30 +283,56 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n4) {
                 case 0x0000:
                     // LD Vx, Vy
+                    printf("LD Vx, Vy\n");
+                    v[n2 >> 8] = v[n3 >> 4];
                     break;
                 case 0x0001:
                     // OR Vx, Vy
+                    printf("OR Vx, Vy\n");
+                    v[n2 >> 8] |= v[n3 >> 4];
                     break;
                 case 0x0002:
                     // AND Vx, Vy
+                    printf("And Vx, Vy\n");
+                    v[n2 >> 8] &= v[n3 >> 4];
                     break;
                 case 0x0003:
                     // XOR Vx, Vy
+                    printf("XOR Vx, Vy\n");
+                    v[n2 >> 8] ^= v[n3 >> 4];
                     break;
                 case 0x0004:
                     // ADD Vx, Vy
+                    printf("ADD Vx, Vy\n");
+                    if ((v[n2 >> 8] += v[n3 >> 4]) > 0xff) {
+                        v[0xf] = 1;
+                    } else {
+                        v[0xf] = 0;
+                    }
                     break;
                 case 0x0005:
                     // SUB Vx, Vy
+                    printf("SUB Vx, Vy\n");
+                    (v[n2 >> 8] > v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    v[n2 >> 8] -= v[n3 >> 4];
                     break;
                 case 0x0006:
                     // SHR Vx {, Vy}
+                    printf("SHR Vx {, Vy}\n");
+                    (v[n2 >> 8] & 0x1) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    v[n2 >> 8] /= 0x2;
                     break;
                 case 0x0007:
                     // SUBN Vx, Vy
+                    printf("SUBN Vx, Vy\n");
+                    (v[n2 >> 8] > v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    v[n2 >> 8] = v[n3 >> 4] - v[n2 >> 8];
                     break;
                 case 0x000E:
                     // SHL Vx {, Vy}
+                    printf("SHL Vx {, Vy}\n");
+                    ((v[n2 >> 8] & 0x80) >> 7) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    v[n2 >> 8] *= 0x2;
                     break;
                 default:
                     printf("UNKNOWN INSTRUCTION: %.4x\n", instruction);
@@ -290,6 +341,10 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0x9000:
             // SNE Vx, Vy
+            printf("SNE Vx, Vy\n");
+            if (v[n2 >> 8] != v[n3 >> 4]) {
+                pc += 2;
+            }
             break;
         case 0xa000:
             // LD I, addr
@@ -298,9 +353,16 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0xb000:
             // JP V0, addr
+            printf("JP V0, addr\n");
+            pc = (n2 | n3 | n4) + v[0x0];
+            inc_pc = false;
             break;
         case 0xc000:
             // RND Vx, byte
+            printf("RND Vx, byte\n");
+            srand(time(NULL));
+            random_number = rand() % (0xff - 0x0 + 1) + 0x0;
+            v[n2 >> 8] = random_number & (n3 | n4);
             break;
         case 0xd000:
             // DRW Vx, Vy, nibble
@@ -311,7 +373,6 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
              * j tracks each of the 8 bits of the current address (from left to
              * right)
              */
-
             // x = n2 >> 8;
             // y = n3 >> 4;
             // n = n4;
@@ -329,14 +390,13 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
 
                     /*
                      * if an 'on' pixel is set to 'off', set VF to 1:
-                     * i.e: if both are true
+                     * i.e: if both are true (in that case xor returns 0 when
+                     * the current pixel was 1)
                      */
-
-                    /* (memory[address] >> 7 - j) & 0x1 -> the single bit
-                     * needed! */
-
                     if ((screen_data[row][col]) &&
                         (((memory[address] >> (7 - j)) & 0x1))) {
+                        /* (memory[address] >> 7 - j) & 0x1 -> the single bit
+                         * needed! */
                         v[0xf] = 1;
                     }
 
@@ -345,18 +405,6 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                         (((memory[address] >> (7 - j)) & 0x1));
                 }
             }
-
-            // printf screen_data
-            // for (int row = 0; row < CH8_SCREEN_ROWS; row++) {
-            //     for (int col = 0; col < CH8_SCREEN_COLS; col++) {
-            //         if (screen_data[row][col]) {
-            //             printf("x");
-            //         } else {
-            //             printf(" ");
-            //         }
-            //     }
-            //     printf("\n");
-            // }
 
             // load the new screen
             CPU_draw_on_SDL_screen(ch8);
@@ -367,9 +415,11 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n3 | n4) {
                 case 0x009e:
                     // SKP Vx
+                    // TODO
                     break;
                 case 0x00A1:
                     // SKNP Vx
+                    // TODO
                     break;
                 default:
                     printf("UNKNOWN INSTRUCTION: %.4x\n", instruction);
@@ -380,30 +430,54 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n3 | n4) {
                 case 0x0007:
                     // LD Vx, DT
+                    printf("LD Vx, DT\n");
+                    v[n2 >> 8] = delay_timer;
                     break;
                 case 0x000a:
                     // LD Vx, K
+                    // TODO
                     break;
                 case 0x0015:
                     // LD DT, Vx
+                    printf("LD DT, Vx\n");
+                    delay_timer = v[n2 >> 8];
                     break;
                 case 0x0018:
                     // LD ST, Vx
+                    printf("LD ST, Vxx\n");
+                    sound_timer = v[n2 >> 8];
                     break;
                 case 0x001e:
                     // ADD I, Vx
+                    printf("ADD I, Vx\n");
+                    I += v[n2 >> 8];
                     break;
                 case 0x0029:
                     // LD F, Vx
+                    printf("LD F, Vx\n");
+                    I = BEGIN_FONTS_ADDRESS + v[n2 >> 8];
                     break;
                 case 0x0033:
                     // LD B, Vx
+                    printf("LD B, Vx\n");
+                    memory[I] = v[n2 >> 8] / 100;
+                    memory[I + 1] = (v[n2 >> 8] % 100) / 10;
+                    memory[I + 2] = v[n2 >> 8] % 10;
+
                     break;
                 case 0x0055:
                     // LD [I], Vx
+                    printf("LD [I], Vx\n");
+                    for (uint16_t i = 0x00; i <= (n2 >> 8); i++) {
+                        memory[I + i] = v[i];
+                    }
                     break;
                 case 0x0065:
-                    // LD, Vx, [I]
+                    // LD Vx, [I]
+                    printf("LD Vx, [I]\n");
+                    for (uint16_t i = 0x0; i <= (n2 >> 8); i++) {
+                        v[i] = memory[I + i];
+                    }
                     break;
                 default:
                     printf("UNKNOWN INSTRUCTION: %.4x\n", instruction);
