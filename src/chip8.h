@@ -14,6 +14,7 @@ typedef struct Chip8 {
     int scale;
     int screen_height;
     int screen_width;
+    bool keyboard_state[0x10];
 } Chip8;
 
 bool CHIP8_initialize_SDL(Chip8 *chip8);

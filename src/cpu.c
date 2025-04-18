@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "chip8.h"
 #include "rom.h"
+#include <SDL_events.h>
 #include <SDL_render.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -30,6 +31,9 @@ static bool font_loaded = false;
 static bool rom_loaded = false;
 static bool inc_pc = true;
 static uint8_t random_number = 0;
+static uint8_t key_pressed = 16;
+static bool halt = false;
+static uint8_t halt_key = 16;
 
 /*****************************************************************************
  * static functions' declarations
@@ -40,6 +44,7 @@ static uint16_t CPU_get_instruction(void);
 static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8);
 static void CPU_clear_screen_data(void);
 static void CPU_draw_on_SDL_screen(Chip8 *ch8);
+static uint8_t get_chip8_key(SDL_Event event);
 
 /*****************************************************************************
  * functions' definitions
@@ -56,7 +61,7 @@ void CPU_load_rom(Rom *rom) {
     rom_loaded = true;
     pc = ROM_ADDRESS;
     // for(int i = ROM_ADDRESS; i < rom->size + ROM_ADDRESS; i++) {
-    //      printf("%.4x: %.2x\n", i, memory[i]);
+    //      //printf("%.4x: %.2x\n", i, memory[i]);
     // }
 }
 
@@ -64,10 +69,16 @@ void CPU_Execute_Instruction(Chip8 *ch8) {
     if (rom_loaded && font_loaded) {
         uint16_t instruction = CPU_get_instruction();
         CPU_decode_execute_instruction(instruction, ch8);
-        if (inc_pc) {
-            pc += 2; // increments to next instruction
-        } else {
-            inc_pc = true;
+        if (!halt) {
+
+            if (inc_pc) {
+                pc += 2; // increments to next instruction
+            } else {
+                inc_pc = true;
+            }
+        }
+        if (delay_timer) {
+            delay_timer--;
         }
     } else {
         printf("no rom loaded");
@@ -127,7 +138,7 @@ static void CPU_load_fonts(void) {
     font_loaded = true;
 
     // for (int i = BEGIN_FONTS_ADDRESS; i <= END_FONTS_ADDRESS; i++) {
-    //     printf("%.2x: %.2x\n", i, memory[i]);
+    //     //printf("%.2x: %.2x\n", i, memory[i]);
     // }
 }
 
@@ -196,6 +207,65 @@ static void CPU_clear_state(void) {
 
     // clear stack pointer
     sp = 0;
+}
+
+/**
+ * If key pressed is mapped to chip8's keyboard, returns the value of the key
+ * from 0 to F, else, returns 16.
+ */
+static uint8_t get_chip8_key(SDL_Event event) {
+    switch (event.key.type) {
+        case SDLK_1:
+            return (uint8_t)0x1;
+            break;
+        case SDLK_2:
+            return (uint8_t)0x2;
+            break;
+        case SDLK_3:
+            return (uint8_t)0x3;
+            break;
+        case SDLK_4:
+            return (uint8_t)0xc;
+            break;
+        case SDLK_q:
+            return (uint8_t)0x4;
+            break;
+        case SDLK_w:
+            return (uint8_t)0x5;
+            break;
+        case SDLK_e:
+            return (uint8_t)0x6;
+            break;
+        case SDLK_r:
+            return (uint8_t)0xd;
+            break;
+        case SDLK_a:
+            return (uint8_t)0x7;
+            break;
+        case SDLK_s:
+            return (uint8_t)0x8;
+            break;
+        case SDLK_d:
+            return (uint8_t)0x9;
+            break;
+        case SDLK_f:
+            return (uint8_t)0xe;
+            break;
+        case SDLK_z:
+            return (uint8_t)0xa;
+            break;
+        case SDLK_x:
+            return (uint8_t)0x0;
+            break;
+        case SDLK_c:
+            return (uint8_t)0xb;
+            break;
+        case SDLK_v:
+            return (uint8_t)0xf;
+            break;
+        default:
+            return (uint8_t)0x10;
+    }
 }
 
 static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
@@ -313,8 +383,8 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                 case 0x0005:
                     // SUB Vx, Vy
                     printf("SUB Vx, Vy\n");
-                    (v[n2 >> 8] > v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
-                    v[n2 >> 8] -= v[n3 >> 4];
+                    (v[n2 >> 8] >= v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    v[n2 >> 8] = v[n2 >> 8] - v[n3 >> 4];
                     break;
                 case 0x0006:
                     // SHR Vx {, Vy}
@@ -325,7 +395,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                 case 0x0007:
                     // SUBN Vx, Vy
                     printf("SUBN Vx, Vy\n");
-                    (v[n2 >> 8] > v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    (v[n3 >> 4] >= v[n2 >> 8]) ? (v[0xf] = 1) : (v[0xf] = 0);
                     v[n2 >> 8] = v[n3 >> 4] - v[n2 >> 8];
                     break;
                 case 0x000E:
@@ -415,11 +485,17 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n3 | n4) {
                 case 0x009e:
                     // SKP Vx
-                    // TODO
+                    printf("SKP Vx\n");
+                    if (ch8->keyboard_state[v[n2 >> 8]]) {
+                        pc += 2;
+                    }
                     break;
                 case 0x00A1:
                     // SKNP Vx
-                    // TODO
+                    printf("SKNP Vx\n");
+                    if (!ch8->keyboard_state[v[n2 >> 8]]) {
+                        pc += 2;
+                    }
                     break;
                 default:
                     printf("UNKNOWN INSTRUCTION: %.4x\n", instruction);
@@ -436,6 +512,23 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                 case 0x000a:
                     // LD Vx, K
                     // TODO
+                    // Delay timer must continue
+                    // once the key is released the execution resumes.
+                    printf("LD Vx, K\n");
+                    if (halt && (halt_key < 16)) {
+                        if (!ch8->keyboard_state[halt_key]) {
+                            halt = false;
+                            halt_key = 16;
+                            return;
+                        }
+                    }
+                    halt = true;
+                    for (uint8_t i = 0; i < 16; i++) {
+                        if (ch8->keyboard_state[i]) {
+                            v[n2 >> 8] = i;
+                            halt_key = i;
+                        }
+                    }
                     break;
                 case 0x0015:
                     // LD DT, Vx
