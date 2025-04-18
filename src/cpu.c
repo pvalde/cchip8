@@ -11,7 +11,7 @@
 
 #define ROM_ADDRESS 0x200
 #define BEGIN_FONTS_ADDRESS 0x000
-#define END_FONTS_ADDRESS 0x1FF
+// #define END_FONTS_ADDRESS 0x050
 #define CH8_SCREEN_COLS 64
 #define CH8_SCREEN_ROWS 32
 
@@ -130,7 +130,7 @@ static void CPU_load_fonts(void) {
         0x80, 0xf0, 0x80, 0x80,
     };
 
-    for (int m_i = BEGIN_FONTS_ADDRESS, i = 0; i <= END_FONTS_ADDRESS;
+    for (int m_i = BEGIN_FONTS_ADDRESS, i = 0; i < (sizeof(fonts) / sizeof(fonts[0]));
          i++, m_i++) {
         memory[m_i] = fonts[i];
     }
@@ -460,11 +460,10 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             // DRW Vx, Vy, nibble
             printf("DRW Vx, Vy, nibble\n");
 
-            /* i tracks the number of addresses to read from memory*/
-            /*
-             * j tracks each of the 8 bits of the current address (from left to
-             * right)
-             */
+            // i tracks the number of addresses to read from memory
+            // j tracks each of the 8 bits of the current address (from left to
+            // right)
+
             // x = n2 >> 8;
             // y = n3 >> 4;
             // n = n4;
@@ -570,7 +569,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                 case 0x0029:
                     // LD F, Vx
                     printf("LD F, Vx\n");
-                    I = BEGIN_FONTS_ADDRESS + v[n2 >> 8];
+                    I = BEGIN_FONTS_ADDRESS + (v[n2 >> 8] * 5);
                     break;
                 case 0x0033:
                     // LD B, Vx

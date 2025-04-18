@@ -3,6 +3,8 @@
 #include <SDL.h>
 #include <SDL_events.h>
 
+#define CYCLES_PER_SECOND 120
+
 bool CHIP8_initialize_SDL(Chip8 *chip8) {
 
     // Initialize SDL
@@ -107,8 +109,13 @@ static uint8_t get_chip8_key(SDL_Event event) {
 
 void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
     printf("inside run. quit: %d\n", (int)(*quit_flag));
+    // uint32_t ticks = SDL_GetTicks();
+    // uint32_t current_ticks = SDL_GetTicks();
+    // uint32_t delta;
     while (!*quit_flag) {
+
         while (SDL_PollEvent(&ch8->event)) {
+
             if (ch8->event.type == SDL_QUIT) {
                 *quit_flag = true;
             }
@@ -119,7 +126,11 @@ void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
                 ch8->keyboard_state[get_chip8_key(ch8->event)] = false;
             }
         }
-        // SDL_Delay(500);
-        CPU_Execute_Instruction(ch8);
+        // current_ticks = SDL_GetTicks();
+        // delta = current_ticks - ticks;
+        // if (delta > 1000 / CYCLES_PER_SECOND) {
+            CPU_Execute_Instruction(ch8);
+            // ticks = SDL_GetTicks();
+        //}
     }
 }
