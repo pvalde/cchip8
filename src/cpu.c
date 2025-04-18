@@ -87,7 +87,7 @@ void CPU_Execute_Instruction(Chip8 *ch8) {
 }
 
 static uint16_t CPU_get_instruction(void) {
-    printf("addresses [%.2x-%.2x]: ", pc, pc + 1);
+    printf("addresses [0x%.2x-0x%.2x]: ", pc, pc + 1);
     uint8_t high_byte = memory[pc];
     uint8_t low_byte = memory[pc + 1];
     uint16_t instruction = 0x0000 | (high_byte << 8);
@@ -274,7 +274,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
     uint16_t n3 = instruction & 0x00f0;
     uint16_t n4 = instruction & 0x000f;
 
-    printf("%.4x -> ", instruction);
+    printf("0x%.4x -> ", instruction);
 
     switch (n1) {
         case 0x0000:
@@ -292,9 +292,12 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     printf("RET\n");
                     pc = stack[sp];
                     sp--;
-                    // inc_pc = false; --> this is because we don't to repeat
-                    // the instruction we are returning to, but to continue
-                    // with the next after it.
+                    /* inc_pc = false; */ /* --> this is commented out because
+                                           * we don't want to repeat the
+                                           * instruction we are returning to,
+                                           * but to continue with the next after
+                                           * it.
+                                           */
                     break;
                 default:
                     // SYS addr
@@ -374,35 +377,54 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                 case 0x0004:
                     // ADD Vx, Vy
                     printf("ADD Vx, Vy\n");
-                    if ((v[n2 >> 8] += v[n3 >> 4]) > 0xff) {
+                    /* using uint16_t to test the overflow! */
+                    if (((uint16_t)(v[n2 >> 8]) + v[n3 >> 4]) > 0xff) {
+                        v[n2 >> 8] += v[n3 >> 4];
                         v[0xf] = 1;
                     } else {
+                        v[n2 >> 8] += v[n3 >> 4];
                         v[0xf] = 0;
                     }
                     break;
                 case 0x0005:
                     // SUB Vx, Vy
                     printf("SUB Vx, Vy\n");
-                    (v[n2 >> 8] >= v[n3 >> 4]) ? (v[0xf] = 1) : (v[0xf] = 0);
-                    v[n2 >> 8] = v[n2 >> 8] - v[n3 >> 4];
+                    {
+                        uint8_t original_vx = v[n2 >> 8];
+
+                        v[n2 >> 8] -= v[n3 >> 4];
+                        (original_vx >= v[n3 >> 4]) ? (v[0xf] = 1)
+                                                    : (v[0xf] = 0);
+                    }
                     break;
                 case 0x0006:
                     // SHR Vx {, Vy}
                     printf("SHR Vx {, Vy}\n");
-                    (v[n2 >> 8] & 0x1) ? (v[0xf] = 1) : (v[0xf] = 0);
-                    v[n2 >> 8] /= 0x2;
+                    {
+                        uint8_t original_vx = v[n2 >> 8];
+                        v[n2 >> 8] /= 0x2;
+
+                        (original_vx & 0x1) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    }
                     break;
                 case 0x0007:
                     // SUBN Vx, Vy
                     printf("SUBN Vx, Vy\n");
-                    (v[n3 >> 4] >= v[n2 >> 8]) ? (v[0xf] = 1) : (v[0xf] = 0);
-                    v[n2 >> 8] = v[n3 >> 4] - v[n2 >> 8];
+                    {
+                        uint8_t original_vx = v[n2 >> 8];
+                        v[n2 >> 8] = v[n3 >> 4] - v[n2 >> 8];
+                        (v[n3 >> 4] >= original_vx) ? (v[0xf] = 1)
+                                                    : (v[0xf] = 0);
+                    }
                     break;
                 case 0x000E:
                     // SHL Vx {, Vy}
                     printf("SHL Vx {, Vy}\n");
-                    ((v[n2 >> 8] & 0x80) >> 7) ? (v[0xf] = 1) : (v[0xf] = 0);
-                    v[n2 >> 8] *= 0x2;
+                    {
+                        uint8_t original_vx = v[n2 >> 8];
+                        v[n2 >> 8] *= 0x2;
+                        ((original_vx & 0x80) >> 7) ? (v[0xf] = 1) : (v[0xf] = 0);
+                    }
                     break;
                 default:
                     printf("UNKNOWN INSTRUCTION: %.4x\n", instruction);
