@@ -21,5 +21,6 @@ bool CHIP8_initialize_SDL(Chip8 *chip8);
 void CHIP8_close_SDL(Chip8 *chip8);
 void CHIP8_load_rom(Rom *rom);
 void CHIP8_run(Chip8 *ch8, bool *quit_flag);
+void CHIP8_run_debugging_mode(Chip8 *ch8, bool *quit_flag);
 
 #endif // !CHIP8_H

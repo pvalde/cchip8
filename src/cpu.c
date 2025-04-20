@@ -130,8 +130,8 @@ static void CPU_load_fonts(void) {
         0x80, 0xf0, 0x80, 0x80,
     };
 
-    for (int m_i = BEGIN_FONTS_ADDRESS, i = 0; i < (sizeof(fonts) / sizeof(fonts[0]));
-         i++, m_i++) {
+    for (int m_i = BEGIN_FONTS_ADDRESS, i = 0;
+         i < (sizeof(fonts) / sizeof(fonts[0])); i++, m_i++) {
         memory[m_i] = fonts[i];
     }
 
@@ -268,6 +268,31 @@ static uint8_t get_chip8_key(SDL_Event event) {
     }
 }
 
+static void CPU_print_status(void) {
+    // V registers:
+    for (int i = 0; i < 16; i++) {
+        if (i == 8) {
+            printf("\n");
+        } 
+        printf("V%.1x: 0x%.2x ", i, v[i]);
+    }
+    printf("\n");
+    printf("I: 0x%.3x ", I);
+    printf("pc: 0x%.3x ", pc);
+    printf("sp: 0x%.3x ", sp);
+    printf("dt: 0x%.3x ", delay_timer);
+    printf("st: 0x%.3x\n", sound_timer);
+    printf("stack: ");
+    for (int i = 0; i < sizeof(stack) / sizeof(stack[0]); i++) {
+        if (i == 7) {
+            printf("\n");
+        } 
+        printf("%.1x=0x%.3x ", i, stack[i]);
+    }
+    printf("\n");
+    printf("-------\n");
+}
+
 static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
     uint16_t n1 = instruction & 0xf000;
     uint16_t n2 = instruction & 0x0f00;
@@ -301,7 +326,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 default:
                     // SYS addr
-                    printf("SYS addr\n");
+                    printf("SYS addr=0x%.3x\n", n2 | n3 | n4);
                     pc = n2 | n3 | n4;
                     inc_pc = false;
                     break;
@@ -309,13 +334,13 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0x1000:
             // JP addr
-            printf("JP addr\n");
+            printf("JP addr=0x%.3x\n", n2 | n3 | n4);
             pc = n2 | n3 | n4;
             inc_pc = false;
             break;
         case 0x2000:
             // CALL addr
-            printf("CALL addr\n");
+            printf("CALL addr=0x%.3x\n", n2 | n3 | n4);
             sp++;
             stack[sp] = pc;
             pc = n2 | n3 | n4;
@@ -323,60 +348,70 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0x3000:
             // SE Vx, byte
-            printf("SE Vx, byte\n");
+            printf("SE V[x=0x%.2x]=0x%.2x, byte=0x%.2x\n", n2 >> 8, v[n2 >> 8],
+                   n3 | n4);
             if ((v[n2 >> 8]) == (n3 | n4)) {
                 pc += 2;
             }
             break;
         case 0x4000:
             // SNE Vx, byte
-            printf("SNE Vx, byte\n");
+            printf("SNE V[x=0x%.2x]=0x%.2x, byte=0x%.2x\n", n2 >> 8, v[n2 >> 8],
+                   n3 | n4);
             if ((v[n2 >> 8]) != (n3 | n4)) {
                 pc += 2;
             }
             break;
         case 0x5000:
             // SE Vx, Vy
-            printf("SE Vx, Vy\n");
+            printf("SE V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n", n2 >> 8,
+                   v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
             if ((v[n2 >> 8]) == (v[n3 >> 4])) {
                 pc += 2;
             }
             break;
         case 0x6000:
             // LD Vx, byte
-            printf("LD Vx, byte\n");
+            printf("LD V[x=0x%.2x]=0x%.2x, byte=0x%.2x\n", n2 >> 8, v[n2 >> 8],
+                   n3 | n4);
             v[n2 >> 8] = n3 | n4;
             break;
         case 0x7000:
-            // ADD Vx, byter
-            printf("ADD Vx, byte\n");
+            // ADD Vx, byte
+            printf("ADD V[x=0x%.2x]=0x%.2x, byte=0x%.2x\n", n2 >> 8, v[n2 >> 8],
+                   n3 | n4);
             v[n2 >> 8] += (n3 | n4);
             break;
         case 0x8000:
             switch (n4) {
                 case 0x0000:
                     // LD Vx, Vy
-                    printf("LD Vx, Vy\n");
+                    printf("LD V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     v[n2 >> 8] = v[n3 >> 4];
                     break;
                 case 0x0001:
                     // OR Vx, Vy
-                    printf("OR Vx, Vy\n");
+                    printf("OR V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     v[n2 >> 8] |= v[n3 >> 4];
                     break;
                 case 0x0002:
                     // AND Vx, Vy
-                    printf("And Vx, Vy\n");
+                    printf("AND V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     v[n2 >> 8] &= v[n3 >> 4];
                     break;
                 case 0x0003:
                     // XOR Vx, Vy
-                    printf("XOR Vx, Vy\n");
+                    printf("XOR V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     v[n2 >> 8] ^= v[n3 >> 4];
                     break;
                 case 0x0004:
                     // ADD Vx, Vy
-                    printf("ADD Vx, Vy\n");
+                    printf("ADD V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     /* using uint16_t to test the overflow! */
                     if (((uint16_t)(v[n2 >> 8]) + v[n3 >> 4]) > 0xff) {
                         v[n2 >> 8] += v[n3 >> 4];
@@ -388,18 +423,20 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x0005:
                     // SUB Vx, Vy
-                    printf("SUB Vx, Vy\n");
+                    printf("SUB V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     {
                         uint8_t original_vx = v[n2 >> 8];
 
-                        v[n2 >> 8] -= v[n3 >> 4];
+                        v[n2 >> 8] = v[n2 >> 8] - v[n3 >> 4];
                         (original_vx >= v[n3 >> 4]) ? (v[0xf] = 1)
                                                     : (v[0xf] = 0);
                     }
                     break;
                 case 0x0006:
                     // SHR Vx {, Vy}
-                    printf("SHR Vx {, Vy}\n");
+                    printf("SHR V[x=0x%.2x]=0x%.2x {, Vy}\n", n2 >> 8,
+                           v[n2 >> 8]);
                     {
                         uint8_t original_vx = v[n2 >> 8];
                         v[n2 >> 8] /= 0x2;
@@ -409,7 +446,8 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x0007:
                     // SUBN Vx, Vy
-                    printf("SUBN Vx, Vy\n");
+                    printf("SUBN V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n",
+                           n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
                     {
                         uint8_t original_vx = v[n2 >> 8];
                         v[n2 >> 8] = v[n3 >> 4] - v[n2 >> 8];
@@ -419,11 +457,13 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x000E:
                     // SHL Vx {, Vy}
-                    printf("SHL Vx {, Vy}\n");
+                    printf("SHL V[x=0x%.2x]=0x%.2x {, Vy}\n", n2 >> 8,
+                           v[n2 >> 8]);
                     {
                         uint8_t original_vx = v[n2 >> 8];
                         v[n2 >> 8] *= 0x2;
-                        ((original_vx & 0x80) >> 7) ? (v[0xf] = 1) : (v[0xf] = 0);
+                        ((original_vx & 0x80) >> 7) ? (v[0xf] = 1)
+                                                    : (v[0xf] = 0);
                     }
                     break;
                 default:
@@ -433,32 +473,36 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             break;
         case 0x9000:
             // SNE Vx, Vy
-            printf("SNE Vx, Vy\n");
+            printf("SNE V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x\n", n2 >> 8,
+                   v[n2 >> 8], n3 >> 4, v[n3 >> 4]);
             if (v[n2 >> 8] != v[n3 >> 4]) {
                 pc += 2;
             }
             break;
         case 0xa000:
             // LD I, addr
-            printf("LD I, addr\n");
+            printf("LD I, addr=0x%.3x\n", n2 | n3 | n4);
             I = n2 | n3 | n4;
             break;
         case 0xb000:
             // JP V0, addr
-            printf("JP V0, addr\n");
+            printf("JP V0=0x%.2x, addr=0x%.3x\n", v[0], n2 | n3 | n4);
             pc = (n2 | n3 | n4) + v[0x0];
             inc_pc = false;
             break;
         case 0xc000:
             // RND Vx, byte
-            printf("RND Vx, byte\n");
+            printf("RND V[x=0x%.2x]=0x%.2x, byte=0x%.2x\n", n2 >> 8, v[n2 >> 8],
+                   n3 | n4);
             srand(time(NULL));
             random_number = rand() % (0xff - 0x0 + 1) + 0x0;
             v[n2 >> 8] = random_number & (n3 | n4);
             break;
         case 0xd000:
             // DRW Vx, Vy, nibble
-            printf("DRW Vx, Vy, nibble\n");
+            printf(
+                "DRW V[x=0x%.2x]=0x%.2x, V[y=0x%.2x]=0x%.2x, nibble=0x%.2x\n",
+                n2 >> 8, v[n2 >> 8], n3 >> 4, v[n3 >> 4], n4);
 
             // i tracks the number of addresses to read from memory
             // j tracks each of the 8 bits of the current address (from left to
@@ -506,14 +550,14 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n3 | n4) {
                 case 0x009e:
                     // SKP Vx
-                    printf("SKP Vx\n");
+                    printf("SKP V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     if (ch8->keyboard_state[v[n2 >> 8]]) {
                         pc += 2;
                     }
                     break;
                 case 0x00A1:
                     // SKNP Vx
-                    printf("SKNP Vx\n");
+                    printf("SKNP V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     if (!ch8->keyboard_state[v[n2 >> 8]]) {
                         pc += 2;
                     }
@@ -527,7 +571,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             switch (n3 | n4) {
                 case 0x0007:
                     // LD Vx, DT
-                    printf("LD Vx, DT\n");
+                    printf("LD V[x=0x%.2x]=0x%.2x, DT\n", n2 >> 8, v[n2 >> 8]);
                     v[n2 >> 8] = delay_timer;
                     break;
                 case 0x000a:
@@ -535,7 +579,7 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     // TODO
                     // Delay timer must continue
                     // once the key is released the execution resumes.
-                    printf("LD Vx, K\n");
+                    printf("LD V[x=0x%.2x]=0x%.2x, K\n", n2 >> 8, v[n2 >> 8]);
                     if (halt && (halt_key < 16)) {
                         if (!ch8->keyboard_state[halt_key]) {
                             halt = false;
@@ -553,27 +597,27 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x0015:
                     // LD DT, Vx
-                    printf("LD DT, Vx\n");
+                    printf("LD DT, V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     delay_timer = v[n2 >> 8];
                     break;
                 case 0x0018:
                     // LD ST, Vx
-                    printf("LD ST, Vxx\n");
+                    printf("LD ST, V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     sound_timer = v[n2 >> 8];
                     break;
                 case 0x001e:
                     // ADD I, Vx
-                    printf("ADD I, Vx\n");
+                    printf("ADD I, V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     I += v[n2 >> 8];
                     break;
                 case 0x0029:
                     // LD F, Vx
-                    printf("LD F, Vx\n");
+                    printf("LD F, V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     I = BEGIN_FONTS_ADDRESS + (v[n2 >> 8] * 5);
                     break;
                 case 0x0033:
                     // LD B, Vx
-                    printf("LD B, Vx\n");
+                    printf("LD B, V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     memory[I] = v[n2 >> 8] / 100;
                     memory[I + 1] = (v[n2 >> 8] % 100) / 10;
                     memory[I + 2] = v[n2 >> 8] % 10;
@@ -581,14 +625,14 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
                     break;
                 case 0x0055:
                     // LD [I], Vx
-                    printf("LD [I], Vx\n");
+                    printf("LD [I], V[x=0x%.2x]=0x%.2x\n", n2 >> 8, v[n2 >> 8]);
                     for (uint16_t i = 0x00; i <= (n2 >> 8); i++) {
                         memory[I + i] = v[i];
                     }
                     break;
                 case 0x0065:
                     // LD Vx, [I]
-                    printf("LD Vx, [I]\n");
+                    printf("LD V[x=0x%.2x]=0x%.2x, [I]\n", n2 >> 8, v[n2 >> 8]);
                     for (uint16_t i = 0x0; i <= (n2 >> 8); i++) {
                         v[i] = memory[I + i];
                     }
@@ -599,4 +643,5 @@ static void CPU_decode_execute_instruction(uint16_t instruction, Chip8 *ch8) {
             }
             break;
     }
+    CPU_print_status();
 }

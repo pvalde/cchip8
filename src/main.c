@@ -15,16 +15,25 @@
 #define SCREEN_HEIGHT (CHIP8_HEIGHT * SCALE)
 
 int main(int argc, char *argv[]) {
-
+    bool debugging_mode = false;
     /* Read Rom */
     Rom rom;
     rom.size = 0;
     rom.data = NULL;
-
+    if (argc < 2) {
+        printf("ERROR: No ROM provided.\n");
+        return 0;
+    }
     if (ROM_read_rom(argv[1], &rom)) {
         return 1;
     }
-    ROM_print_rom_bytes(&rom);
+
+    // printf("arg 2: '%s'\n", argv[2]);
+    if (argc == 3 && !strcmp(argv[2], "debugging")) {
+        debugging_mode = true;
+    }
+
+    // ROM_print_rom_bytes(&rom);
 
     /* initialize Chip8 object */
     Chip8 chip8;
@@ -43,7 +52,11 @@ int main(int argc, char *argv[]) {
     // event loop
     // SDL_Event event;
     bool quit = false;
-    CHIP8_run(&chip8, &quit); // main loop
+    if (debugging_mode) {
+        CHIP8_run_debugging_mode(&chip8, &quit);
+    } else {
+        CHIP8_run(&chip8, &quit); // main loop
+    }
 
     // close everything
     CHIP8_close_SDL(&chip8);

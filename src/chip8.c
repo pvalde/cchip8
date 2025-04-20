@@ -108,7 +108,6 @@ static uint8_t get_chip8_key(SDL_Event event) {
 }
 
 void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
-    printf("inside run. quit: %d\n", (int)(*quit_flag));
     // uint32_t ticks = SDL_GetTicks();
     // uint32_t current_ticks = SDL_GetTicks();
     // uint32_t delta;
@@ -129,8 +128,44 @@ void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
         // current_ticks = SDL_GetTicks();
         // delta = current_ticks - ticks;
         // if (delta > 1000 / CYCLES_PER_SECOND) {
-            CPU_Execute_Instruction(ch8);
-            // ticks = SDL_GetTicks();
+        CPU_Execute_Instruction(ch8);
+        // ticks = SDL_GetTicks();
+        //}
+    }
+}
+
+void CHIP8_run_debugging_mode(Chip8 *ch8, bool *quit_flag) {
+    printf("RUNNING ON DEBUGGING MODE\n");
+    // uint32_t ticks = SDL_GetTicks();
+    // uint32_t current_ticks = SDL_GetTicks();
+    // uint32_t delta;
+    SDL_SetRenderDrawColor(ch8->renderer, 0, 0, 0, 255);
+    SDL_RenderClear(ch8->renderer);
+    SDL_RenderPresent(ch8->renderer);
+
+    while (!*quit_flag) {
+
+        while (SDL_PollEvent(&ch8->event)) {
+
+            if (ch8->event.type == SDL_QUIT) {
+                *quit_flag = true;
+            }
+            if (ch8->event.type == SDL_KEYDOWN) {
+                // stepper on
+                if (ch8->event.key.keysym.sym == SDLK_SPACE) {
+                    CPU_Execute_Instruction(ch8);
+                }
+                ch8->keyboard_state[get_chip8_key(ch8->event)] = true;
+            }
+            if (ch8->event.type == SDL_KEYUP) {
+                ch8->keyboard_state[get_chip8_key(ch8->event)] = false;
+            }
+        }
+        // current_ticks = SDL_GetTicks();
+        // delta = current_ticks - ticks;
+        // if (delta > 1000 / CYCLES_PER_SECOND) {
+        // CPU_Execute_Instruction(ch8);
+        // ticks = SDL_GetTicks();
         //}
     }
 }
