@@ -3,7 +3,7 @@
 #include <SDL.h>
 #include <SDL_events.h>
 
-#define CYCLES_PER_SECOND 120
+#define CYCLES_PER_SECOND 600 
 
 bool CHIP8_initialize_SDL(Chip8 *chip8) {
 
@@ -108,9 +108,9 @@ static uint8_t get_chip8_key(SDL_Event event) {
 }
 
 void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
-    // uint32_t ticks = SDL_GetTicks();
-    // uint32_t current_ticks = SDL_GetTicks();
-    // uint32_t delta;
+    uint32_t ticks = SDL_GetTicks();
+    uint32_t current_ticks = SDL_GetTicks();
+    uint32_t delta;
     while (!*quit_flag) {
 
         while (SDL_PollEvent(&ch8->event)) {
@@ -125,20 +125,17 @@ void CHIP8_run(Chip8 *ch8, bool *quit_flag) {
                 ch8->keyboard_state[get_chip8_key(ch8->event)] = false;
             }
         }
-        // current_ticks = SDL_GetTicks();
-        // delta = current_ticks - ticks;
-        // if (delta > 1000 / CYCLES_PER_SECOND) {
-        CPU_Execute_Instruction(ch8);
-        // ticks = SDL_GetTicks();
-        //}
+        current_ticks = SDL_GetTicks();
+        delta = current_ticks - ticks;
+        if (delta > 1000 / CYCLES_PER_SECOND) {
+            CPU_Execute_Instruction(ch8);
+            ticks = SDL_GetTicks();
+        }
     }
 }
 
 void CHIP8_run_debugging_mode(Chip8 *ch8, bool *quit_flag) {
     printf("RUNNING ON DEBUGGING MODE\n");
-    // uint32_t ticks = SDL_GetTicks();
-    // uint32_t current_ticks = SDL_GetTicks();
-    // uint32_t delta;
     SDL_SetRenderDrawColor(ch8->renderer, 0, 0, 0, 255);
     SDL_RenderClear(ch8->renderer);
     SDL_RenderPresent(ch8->renderer);
@@ -161,11 +158,5 @@ void CHIP8_run_debugging_mode(Chip8 *ch8, bool *quit_flag) {
                 ch8->keyboard_state[get_chip8_key(ch8->event)] = false;
             }
         }
-        // current_ticks = SDL_GetTicks();
-        // delta = current_ticks - ticks;
-        // if (delta > 1000 / CYCLES_PER_SECOND) {
-        // CPU_Execute_Instruction(ch8);
-        // ticks = SDL_GetTicks();
-        //}
     }
 }
